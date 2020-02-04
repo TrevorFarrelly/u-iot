@@ -4,3 +4,5 @@ A framework and protocol for building your own smart home devices and applicatio
 u-iot will be written in Go.
 
 ## More to come in the future!
+
+ See the [Design Doc](DESIGN.md) for what this project will become.
