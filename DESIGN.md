@@ -22,37 +22,36 @@ u-iot has three main components: communication protocols, libraries, and Pi inst
 
 * __Raspberry Pi Integration__
 
-  Having a framework is great and all, but what use is a smart home network without smart home _devices_? u-iot will provide build tools for easily installing a lightweight Raspbian distribution based on [u-root](https://github.com/u-root/u-root). With the use of a GPIO library and some basic circuitry skills, one can build a fully functional smart light, outlet, fan, plant waterer, fish feeder, or whatever else they can dream of.
+  Having a framework is great and all, but what use is a smart home network without smart home _devices_? u-iot will provide build tools for easily installing a lightweight Raspbian distribution based on [u-root](https://github.com/u-root/u-root). With the use of a GPIO library (such as [go-rpio](https://github.com/stianeikeland/go-rpio))and some basic circuitry skills, one can build a fully functional smart light, outlet, fan, plant waterer, fish feeder, or whatever else they can dream of.
 
   u-root has its own set of build tools, wrapping them into an easy-to-use u-iot installer will be the main goal of this portion of the project. u-root is also very barebones, so I imagine lots of experimentation will be necessary to make everything function out-of-the-box.
 
 ### Deliverables
-1. Communication - March 6
-  * send and receive multicasts between multiple devices.
-  * implement bootstrapping process via protobufs and gRPC.
-  * extend protobuf to include function calls and parameter passing.
-  * write detailed communication protocol documentation, finalize RPCs.
 
-  __Result__: toy program that can run on multiple devices, demonstrating communication between them. Documentation of the protocol for any future developers.
+_Februrary_
+  * Send and receive multicasts between numerous devices across the network.
+  * Define bootstrapping process in protobufs and gRPC.
+    * Extend protobuf to include function calls and parameter passing.
+  * Implement toy program that demonstrates the entire bootstrapping process.
+  * Write documentation on communication protocol to ease implementation in other languages.
 
-2. Library - March 20
-  * generate Go protobuf code and build any necessary wrappers (parameter types, etc).
-  * polish bootstrapping process used in test programs, add any necessary interfaces.
-  * Implement a second library in another popular language (TBD, most likely Python).
+_March_
+  * Build uiot-go library.
+    * Extract bootstrapping process from toy program.
+    * Expose function signature definition interface as an easy-to-use API.
+    * Reimplement toy program using the new library.
+  * Build uiot-python to demonstrate interoperability between languages.
+  * Experiment with a repeatable process for installing u-root on Raspberry Pi.
+    * I have a B+, Zero W, and 4 to test on.
 
-  __Result__: Go and Python libraries that can be imported and used in any program, with functional language-agnostic communication.
-
-3. Raspberry Pi - End of Semester
-  * Boot manually installed u-root installation, write install script to wrap process.
-  * Incorporate u-iot libraries and dependencies into installation script.
-  * Experiment with internet - ethernet, WiFi, etc.
-  * Integrate internet configuration into install.
-  * Build basic example devices and apps:
+_April_
+  * Wrap process in installer script.
+  * Integrate internet configuration into the installer.
+  * Allow for user to specify files to include and which programs to run on startup.
+  * Build basic example devices.
     * CLI interface
-    * Repurpose old, broken fan
-    * RGB LED strip (?)
-
-  __Result__: Three devices that communicate with each other and can be controlled by each other.
+    * LED strip
+    * Desk fan
 
 ### More Detailed Ideas
 This section is mostly a place for me to get minute implementation details down on paper before I forget them.
