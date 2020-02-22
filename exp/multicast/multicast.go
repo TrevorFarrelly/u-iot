@@ -10,10 +10,11 @@ import (
   "log"
   "net"
   "os"
+  "strings"
 )
 
 const (
-  saddr = "239.0.0.0:9999"
+  saddr = "239.0.0.0"
   maxlen = 8192
 )
 
@@ -53,7 +54,7 @@ func recvMulticast(addr *net.UDPAddr) {
     }
     // show the message if it did not come from us
     if !src.IP.Equal(local) {
-      fmt.Printf("(%s) %s\n> ", src, string(buf))
+      fmt.Printf("(%s) %s\n> ", strings.Split(src.String(), ":")[0], string(buf))
     }
   }
 }
@@ -70,15 +71,15 @@ func sendMulticast(addr *net.UDPAddr) {
   fmt.Print("> ")
   for scanner.Scan() {
     // build message and send it
-    str := fmt.Sprintf("%s: %s", *name, scanner.Text())
-    conn.Write([]byte(str))
+    msg := fmt.Sprintf("%s: %s", *name, scanner.Text())
+    conn.Write([]byte(msg))
     fmt.Print("> ")
   }
 }
 
 func main() {
   // get the multicast address
-  addr, err := net.ResolveUDPAddr("udp4", saddr)
+  addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", saddr, *port))
   if err != nil {
     log.Fatalf("Could not resolve addr: %s\n", err)
   }
