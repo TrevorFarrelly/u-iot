@@ -22,11 +22,13 @@ import (
 
 // Future library code
 
+// multicast information
 const (
 	mcastaddr = "239.0.0.0:1024"
 	mcastlen  = 512
 )
 
+// local device state
 var (
 	me = &Device{}
 )
@@ -38,6 +40,7 @@ type uiotServer struct {
 	devs []*uiot.DevInfo
 }
 
+// receive a bootstrap RPC from a remote device
 func (s *uiotServer) Bootstrap(ctx context.Context, dev *uiot.DevInfo) (*uiot.DevInfo, error) {
 	log.Printf("Recv'd device info from GRPC client")
 	p, ok := peer.FromContext(ctx)
@@ -54,7 +57,7 @@ func (s *uiotServer) Bootstrap(ctx context.Context, dev *uiot.DevInfo) (*uiot.De
 	return ProtoFromDevice(me), nil
 }
 
-// add a device to the list of known devices
+// add a device to our list of known devices, in a thread-safe manner
 func (s *uiotServer) addDevice(new *uiot.DevInfo) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
@@ -66,7 +69,7 @@ func (s *uiotServer) addDevice(new *uiot.DevInfo) {
 	s.devs = append(s.devs, new)
 }
 
-// get a device from the server
+// show all devices that we know about
 func (s *uiotServer) showDevices() {
 	fmt.Printf("Current devices:\n")
 	s.mux.Lock()
@@ -87,7 +90,7 @@ func (s *uiotServer) showDevices() {
 	}
 }
 
-// abstractions of the protobuf structs
+// abstractions of the protobuf structs: Devices contain 0+ Funcs, Funcs contain 0+ Params
 type Param struct {
 	min uint32
 	max uint32
@@ -102,7 +105,7 @@ type Device struct {
 	Funcs []Func
 }
 
-// information about a remote device
+// IP information about a remote device
 type Remote struct {
 	ip   string
 	port int
@@ -116,7 +119,7 @@ func Register(devname string, funcs ...Func) {
 
 // build a protobuf DevInfo from the provided device
 func ProtoFromDevice(dev *Device) *uiot.DevInfo {
-	// build protobuf message
+	// build protobuf DevInfo
 	rpc := uiot.DevInfo{
 		Id: &uiot.ID{
 			Id: 0,
@@ -202,7 +205,7 @@ func sendMulticast(addr *net.UDPAddr, rpcport int) {
 	log.Printf("Sent GRPC port %d to multicast addr %s", rpcport, mcastaddr)
 }
 
-// receive RPCs from devices responding to our multicast
+// start RPC server to listen for incoming messages
 func recvBootstrapRPC(serv *uiotServer, port int) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -215,9 +218,8 @@ func recvBootstrapRPC(serv *uiotServer, port int) {
 
 // send RPCs to devices that we receive a multicast from
 func sendBootstrapRPC(serv *uiotServer, remote chan Remote) {
-	for {
-		// get server info from multicast
-		r := <-remote
+	// get server info from multicast
+	for r := range remote {
 		// connect to server
 		server := fmt.Sprintf("%s:%d", r.ip, r.port)
 		conn, err := grpc.Dial(server, []grpc.DialOption{grpc.WithInsecure()}...)
@@ -226,7 +228,7 @@ func sendBootstrapRPC(serv *uiotServer, remote chan Remote) {
 		}
 		client := uiot.NewDeviceClient(conn)
 		ctx := context.Background()
-		// request device
+		// request device information
 		device, err := client.Bootstrap(ctx, ProtoFromDevice(me))
 		log.Printf("Recv'd device info from GRPC server %s:%d", r.ip, r.port)
 		if err != nil {
@@ -243,8 +245,8 @@ func sendBootstrapRPC(serv *uiotServer, remote chan Remote) {
 }
 
 // Connect to other u-iot devices on the LAN
-func Bootstrap(port int) {
-	// set up servers to respond to other devices
+func Bootstrap(port int) *uiotServer {
+	// set up UDP and RPC server
 	addr, err := net.ResolveUDPAddr("udp4", mcastaddr)
 	if err != nil {
 		log.Fatalf("Could not resolve multicast addr: %s\n", err)
@@ -254,13 +256,18 @@ func Bootstrap(port int) {
 		devs: []*uiot.DevInfo{},
 	}
 	remote := make(chan Remote)
+	// start servers
 	go recvMulticast(addr, remote)
 	go recvBootstrapRPC(serv, port)
 
+	// wait for servers to spin up
 	time.Sleep(100 * time.Millisecond)
+
 	// send our bootstrapping messages
 	go sendMulticast(addr, port)
-	sendBootstrapRPC(serv, remote)
+	go sendBootstrapRPC(serv, remote)
+
+	return serv
 }
 
 // Example program code
@@ -270,7 +277,10 @@ var (
 	port = flag.Int("port", 2048, "port to receive RPCs on")
 )
 
-// functions that this device performs
+// functions that this device performs. Due to Go's strict typing, parameters
+// must be variadic. As long as the signature is defined properly, the library
+// will verify that you get the number of variables you want, and they are within
+// the range you want.
 func f0(args ...int) {
 	log.Println("zero-arg func")
 }
@@ -281,7 +291,9 @@ func f3(args ...int) {
 	log.Println("three-arg func: %s, %s, %s", args[0], args[1], args[2])
 }
 
-// define structs for each function
+// define structs for each function. As stated above, as long as the definitions
+// here match what is desired in the function, no extra verification will have to
+// be done by the user.
 func getFuncDefs() []Func {
 	return []Func{
 		{
@@ -305,4 +317,8 @@ func main() {
 	flag.Parse()
 	Register(*name, getFuncDefs()...)
 	Bootstrap(*port)
+	// busy wait, implement any local device logic here (UIs, etc)
+	for {
+
+	}
 }
