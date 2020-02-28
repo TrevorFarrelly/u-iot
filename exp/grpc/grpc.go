@@ -10,12 +10,14 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/TrevorFarrelly/u-iot/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 )
 
 // Future library code
@@ -37,6 +39,16 @@ type uiotServer struct {
 }
 
 func (s *uiotServer) Bootstrap(ctx context.Context, dev *uiot.DevInfo) (*uiot.DevInfo, error) {
+	log.Printf("Recv'd device info from GRPC client")
+	p, ok := peer.FromContext(ctx)
+	if ok {
+		addr := strings.Split(p.Addr.String(), ":")
+		portstr, _ := strconv.Atoi(addr[1])
+		dev.Id.Address = addr[0]
+		dev.Id.Port = uint32(portstr)
+	} else {
+		log.Printf("Could not get client info from context")
+	}
 	s.addDevice(dev)
 	return ProtoFromDevice(me), nil
 }
@@ -167,6 +179,7 @@ func recvMulticast(addr *net.UDPAddr, remote chan Remote) {
 		// send results on channel
 		ip := strings.Split(src.String(), ":")[0]
 		port := binary.BigEndian.Uint16(buf)
+		log.Printf("Recv'd GRPC addr %s:%d from multicast addr %s", ip, port, mcastaddr)
 		remote <- Remote{ip, int(port)}
 	}
 }
@@ -185,6 +198,7 @@ func sendMulticast(addr *net.UDPAddr, rpcport int) {
 	b := make([]byte, 2)
 	binary.BigEndian.PutUint16(b, uint16(rpcport))
 	conn.Write(b)
+	log.Printf("Sent GRPC port %d to multicast addr %s", rpcport, mcastaddr)
 }
 
 // receive RPCs from devices responding to our multicast
@@ -213,6 +227,7 @@ func sendBootstrapRPC(serv *uiotServer, remote chan Remote) {
 		ctx := context.Background()
 		// request device
 		device, err := client.Bootstrap(ctx, ProtoFromDevice(me))
+		log.Printf("Recv'd device info from GRPC server %s:%d", r.ip, r.port)
 		if err != nil {
 			log.Printf("%v.Bootstrap() failed: %s", client, err)
 		}
@@ -222,7 +237,6 @@ func sendBootstrapRPC(serv *uiotServer, remote chan Remote) {
 		device.Id.Port = uint32(r.port)
 		// save device to internal database
 		serv.addDevice(device)
-		serv.showDevices()
 	}
 }
 
@@ -244,7 +258,11 @@ func Bootstrap(port int) {
 	time.Sleep(100 * time.Millisecond)
 	// send our bootstrapping messages
 	go sendMulticast(addr, port)
-	sendBootstrapRPC(serv, remote)
+	go sendBootstrapRPC(serv, remote)
+	for {
+		serv.showDevices()
+		time.Sleep(5 * time.Second)
+	}
 }
 
 // Example program code
