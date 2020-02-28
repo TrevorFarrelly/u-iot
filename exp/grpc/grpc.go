@@ -50,6 +50,7 @@ func (s *uiotServer) Bootstrap(ctx context.Context, dev *uiot.DevInfo) (*uiot.De
 		log.Printf("Could not get client info from context")
 	}
 	s.addDevice(dev)
+	s.showDevices()
 	return ProtoFromDevice(me), nil
 }
 
@@ -58,7 +59,7 @@ func (s *uiotServer) addDevice(new *uiot.DevInfo) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	for _, dev := range s.devs {
-		if dev.Id.Address == new.Id.Address {
+		if dev.Name == new.Name && dev.Id.Address == new.Id.Address {
 			return
 		}
 	}
@@ -237,6 +238,7 @@ func sendBootstrapRPC(serv *uiotServer, remote chan Remote) {
 		device.Id.Port = uint32(r.port)
 		// save device to internal database
 		serv.addDevice(device)
+		serv.showDevices()
 	}
 }
 
@@ -258,11 +260,7 @@ func Bootstrap(port int) {
 	time.Sleep(100 * time.Millisecond)
 	// send our bootstrapping messages
 	go sendMulticast(addr, port)
-	go sendBootstrapRPC(serv, remote)
-	for {
-		serv.showDevices()
-		time.Sleep(5 * time.Second)
-	}
+	sendBootstrapRPC(serv, remote)
 }
 
 // Example program code
