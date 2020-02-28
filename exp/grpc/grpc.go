@@ -33,20 +33,24 @@ var (
 type uiotServer struct {
 	uiot.UnimplementedDeviceServer
 	mux  *sync.Mutex
-	devs []*Device
+	devs []*uiot.DevInfo
 }
 
 func (s *uiotServer) Bootstrap(ctx context.Context, dev *uiot.DevInfo) (*uiot.DevInfo, error) {
-	log.Printf("Received RPC")
-	s.addDevice(DeviceFromProto(dev))
+	s.addDevice(dev)
 	return ProtoFromDevice(me), nil
 }
 
 // add a device to the list of known devices
-func (s *uiotServer) addDevice(dev *Device) {
+func (s *uiotServer) addDevice(new *uiot.DevInfo) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	s.devs = append(s.devs, dev)
+	for _, dev := range s.devs {
+		if dev.Id.Address == new.Id.Address {
+			return
+		}
+	}
+	s.devs = append(s.devs, new)
 }
 
 // get a device from the server
@@ -59,10 +63,10 @@ func (s *uiotServer) showDevices() {
 		for _, f := range dev.Funcs {
 			fmt.Printf("%s(", f.Name)
 			for i, p := range f.Params {
-				if i > 0 && i < len(f.Params)-1 {
+				fmt.Printf("%d-%d", p.Min, p.Max)
+				if i < len(f.Params)-1 {
 					fmt.Printf(", ")
 				}
-				fmt.Printf("%d-%d", p.min, p.max)
 			}
 			fmt.Printf(") ")
 		}
@@ -93,7 +97,6 @@ type Remote struct {
 
 // save our user's device info to local state
 func Register(devname string, funcs ...Func) {
-	log.Printf("Registering device %s\n", devname)
 	me.Name = devname
 	me.Funcs = funcs
 }
@@ -146,13 +149,7 @@ func DeviceFromProto(rpc *uiot.DevInfo) *Device {
 }
 
 // receive multicasts from remote devices
-func recvMulticast(remote chan Remote) {
-	// get the multicast address
-	addr, err := net.ResolveUDPAddr("udp4", mcastaddr)
-	if err != nil {
-		log.Fatalf("Could not resolve multicast addr: %s\n", err)
-	}
-
+func recvMulticast(addr *net.UDPAddr, remote chan Remote) {
 	// set this socket to listen for multicasts on the specified address
 	conn, err := net.ListenMulticastUDP("udp4", nil, addr)
 	if err != nil {
@@ -162,42 +159,36 @@ func recvMulticast(remote chan Remote) {
 
 	// receive any incoming multicast messages
 	for {
-		log.Printf("waiting for multicasts...\n")
-		buf := make([]byte, mcastlen)
+		buf := make([]byte, 2)
 		_, src, err := conn.ReadFromUDP(buf)
 		if err != nil {
 			log.Printf("Failed to read message: %s\n", err)
 		}
 		// send results on channel
 		ip := strings.Split(src.String(), ":")[0]
-		port := binary.BigEndian.Uint64(buf)
-		log.Printf("Recv'd RPC port from %s: %s\n", ip, port)
+		port := binary.BigEndian.Uint16(buf)
 		remote <- Remote{ip, int(port)}
 	}
 }
 
 // send multicasts to remote devices
-func sendMulticast(rpcport int) {
-	log.Printf("Sending our multicast...\n")
-	// get the multicast address
-	addr, err := net.ResolveUDPAddr("udp4", mcastaddr)
-	if err != nil {
-		log.Fatalf("Could not resolve multicast addr: %s\n", err)
-	}
+func sendMulticast(addr *net.UDPAddr, rpcport int) {
 
 	// set this socket to send on the multicast address
 	conn, err := net.DialUDP("udp4", nil, addr)
+	defer conn.Close()
 	if err != nil {
 		log.Fatalf("Could not set up socket: %s\n", conn)
 	}
 
 	// send the port we are receiving RPC's on
-	binary.Write(conn, binary.BigEndian, rpcport)
+	b := make([]byte, 2)
+	binary.BigEndian.PutUint16(b, uint16(rpcport))
+	conn.Write(b)
 }
 
 // receive RPCs from devices responding to our multicast
 func recvBootstrapRPC(serv *uiotServer, port int) {
-	log.Printf("Starting RPC server...")
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Fatalf("failed to start RPC server: %v", err)
@@ -214,41 +205,46 @@ func sendBootstrapRPC(serv *uiotServer, remote chan Remote) {
 		r := <-remote
 		// connect to server
 		server := fmt.Sprintf("%s:%d", r.ip, r.port)
-		conn, err := grpc.Dial(server, nil)
+		conn, err := grpc.Dial(server, []grpc.DialOption{grpc.WithInsecure()}...)
 		if err != nil {
 			log.Printf("Could not dial %s: %s\n", server, err)
 		}
 		client := uiot.NewDeviceClient(conn)
 		ctx := context.Background()
 		// request device
-		log.Printf("Bootstrap RPC request to %v...\n", server)
 		device, err := client.Bootstrap(ctx, ProtoFromDevice(me))
 		if err != nil {
 			log.Printf("%v.Bootstrap() failed: %s", client, err)
 		}
-		log.Printf("Bootstrap RPC response received\n")
-		serv.addDevice(DeviceFromProto(device))
+
+		// add remote info to device
+		device.Id.Address = r.ip
+		device.Id.Port = uint32(r.port)
+		// save device to internal database
+		serv.addDevice(device)
+		serv.showDevices()
 	}
 }
 
 // Connect to other u-iot devices on the LAN
 func Bootstrap(port int) {
-	log.Printf("Starting bootstrap process on port %d", port)
 	// set up servers to respond to other devices
+	addr, err := net.ResolveUDPAddr("udp4", mcastaddr)
+	if err != nil {
+		log.Fatalf("Could not resolve multicast addr: %s\n", err)
+	}
 	serv := &uiotServer{
 		mux: &sync.Mutex{},
-		devs: []*Device{},
+		devs: []*uiot.DevInfo{},
 	}
 	remote := make(chan Remote)
-	go recvMulticast(remote)
+	go recvMulticast(addr, remote)
 	go recvBootstrapRPC(serv, port)
 
+	time.Sleep(100 * time.Millisecond)
 	// send our bootstrapping messages
-	go sendBootstrapRPC(serv, remote)
-	for {
-		serv.showDevices()
-		time.Sleep(5 * time.Second)
-	}
+	go sendMulticast(addr, port)
+	sendBootstrapRPC(serv, remote)
 }
 
 // Example program code
