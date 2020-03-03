@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TrevorFarrelly/u-iot/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 )
@@ -35,13 +34,13 @@ var (
 
 // RPC server struct and methods
 type uiotServer struct {
-	uiot.UnimplementedDeviceServer
+	UnimplementedDeviceServer
 	mux  *sync.Mutex
-	devs []*uiot.DevInfo
+	devs []*DevInfo
 }
 
 // receive a bootstrap RPC from a remote device
-func (s *uiotServer) Bootstrap(ctx context.Context, dev *uiot.DevInfo) (*uiot.DevInfo, error) {
+func (s *uiotServer) Bootstrap(ctx context.Context, dev *DevInfo) (*DevInfo, error) {
 	log.Printf("Recv'd device info from GRPC client")
 	p, ok := peer.FromContext(ctx)
 	if ok {
@@ -58,7 +57,7 @@ func (s *uiotServer) Bootstrap(ctx context.Context, dev *uiot.DevInfo) (*uiot.De
 }
 
 // add a device to our list of known devices, in a thread-safe manner
-func (s *uiotServer) addDevice(new *uiot.DevInfo) {
+func (s *uiotServer) addDevice(new *DevInfo) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	for _, dev := range s.devs {
@@ -118,23 +117,23 @@ func Register(devname string, funcs ...Func) {
 }
 
 // build a protobuf DevInfo from the provided device
-func ProtoFromDevice(dev *Device) *uiot.DevInfo {
+func ProtoFromDevice(dev *Device) *DevInfo {
 	// build protobuf DevInfo
-	rpc := uiot.DevInfo{
-		Id: &uiot.ID{
+	rpc := DevInfo{
+		Id: &ID{
 			Id: 0,
 		},
 		Name: dev.Name,
 	}
 	// add all funcs
 	for i, f := range dev.Funcs {
-		new := &uiot.FuncDef{
+		new := &FuncDef{
 			Id:   uint32(i),
 			Name: f.Name,
 		}
 		// add all parameters for this func
 		for _, p := range f.Params {
-			new.Params = append(new.Params, &uiot.ParamDef{
+			new.Params = append(new.Params, &ParamDef{
 				Min: p.min,
 				Max: p.max,
 			})
@@ -146,7 +145,7 @@ func ProtoFromDevice(dev *Device) *uiot.DevInfo {
 }
 
 // build a Device from the provided protobuf DevInfo
-func DeviceFromProto(rpc *uiot.DevInfo) *Device {
+func DeviceFromProto(rpc *DevInfo) *Device {
 	// initialize device struct
 	dev := Device{Name: rpc.Name}
 	// add all funcs
@@ -212,7 +211,7 @@ func recvBootstrapRPC(serv *uiotServer, port int) {
 		log.Fatalf("failed to start RPC server: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	uiot.RegisterDeviceServer(grpcServer, serv)
+	RegisterDeviceServer(grpcServer, serv)
 	grpcServer.Serve(lis)
 }
 
@@ -226,7 +225,7 @@ func sendBootstrapRPC(serv *uiotServer, remote chan Remote) {
 		if err != nil {
 			log.Printf("Could not dial %s: %s\n", server, err)
 		}
-		client := uiot.NewDeviceClient(conn)
+		client := NewDeviceClient(conn)
 		ctx := context.Background()
 		// request device information
 		device, err := client.Bootstrap(ctx, ProtoFromDevice(me))
@@ -253,7 +252,7 @@ func Bootstrap(port int) *uiotServer {
 	}
 	serv := &uiotServer{
 		mux: &sync.Mutex{},
-		devs: []*uiot.DevInfo{},
+		devs: []*DevInfo{},
 	}
 	remote := make(chan Remote)
 	// start servers
@@ -270,7 +269,7 @@ func Bootstrap(port int) *uiotServer {
 	return serv
 }
 
-// Example program code
+// Example program code Interface is subject to chane
 
 var (
 	name = flag.String("name", "", "device name")
@@ -318,7 +317,5 @@ func main() {
 	Register(*name, getFuncDefs()...)
 	Bootstrap(*port)
 	// busy wait, implement any local device logic here (UIs, etc)
-	for {
-
-	}
+	for {}
 }
