@@ -6,33 +6,33 @@ service Device {
     rpc Bootstrap(DevInfo) returns (DevInfo) {}
 }
 
-// ID contains all of the communication-relevant information about a device
-// Contains a device's IP address, port, and unique ID number.
-message ID {
-    uint32 id = 1;
-    uint32 port = 2;
-    string address = 3;
+// Meta contains human-readable information about a device. Name, type of device,
+// and room it is located in
+message Meta {
+    uint32 type = 1;
+    uint32 room = 2;
+    string name = 3;
 }
 
-// ParamDef messages represent valid parameters for a given function.
+// Param messages represent valid parameters for a given function.
 // Contains mininum and maximum values the parameter can take.
-message ParamDef {
+message Param {
     uint32 min = 1;
     uint32 max = 2;
 }
 
-// FuncDef messages represent individual functions a device can perform.
+// Func messages represent individual functions a device can perform.
 // Contains an ID, human-readable name, and list of parameters.
-message FuncDef {
-  uint32 id = 1;
+message Func {
   string name = 2;
-  repeated ParamDef params = 3;
+  repeated Param params = 3;
 }
 
 // DevInfo message are sent when a new device is connecting to the network.
 // Contains a device's identifying information and all of the functions it performs.
 message DevInfo {
-  ID id = 1;
-  string name = 2;
-  repeated FuncDef funcs = 3;
+  uint32 port = 1;
+  string addr = 2;
+  Meta meta = 3;
+  repeated Func funcs = 4;
 }
