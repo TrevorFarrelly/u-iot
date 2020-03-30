@@ -119,6 +119,22 @@ func (re *rpcEndpoint) Bootstrap(ctx context.Context, remote *proto.DevInfo) (*p
 	return re.local.asProto(), err
 }
 
+func (re *rpcEndpoint) CallFunc(ctx context.Context, funcinfo *proto.FuncCall) (*proto.Err, error) {
+	// get function from local device
+	f, ok := re.local.Funcs[funcinfo.Name]
+	if !ok {
+		return &proto.Err{Msg:"Device does not have function"}, nil
+	}
+	// parse parameters
+	var params []int
+	for _, p := range funcinfo.Params {
+		params = append(params, int(p))
+	}
+	// call function
+	f.F(params...)
+	return &proto.Err{Msg:""}, nil
+}
+
 // start the RPC server
 func (re *rpcEndpoint) listenRPC(port int) error {
 	// set up socket
