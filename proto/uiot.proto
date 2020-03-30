@@ -4,6 +4,7 @@ syntax = "proto3";
 service Device {
     // Send our information to a remote device, and get theirs in return
     rpc Bootstrap(DevInfo) returns (DevInfo) {}
+    rpc CallFunc(FuncCall) returns (FuncRet) {}
 }
 
 // Meta contains human-readable information about a device. Name, type of device,
@@ -24,8 +25,8 @@ message Param {
 // Func messages represent individual functions a device can perform.
 // Contains an ID, human-readable name, and list of parameters.
 message Func {
-  string name = 2;
-  repeated Param params = 3;
+  string name = 1;
+  repeated Param params = 2;
 }
 
 // DevInfo message are sent when a new device is connecting to the network.
@@ -35,4 +36,17 @@ message DevInfo {
   string addr = 2;
   Meta meta = 3;
   repeated Func funcs = 4;
+}
+
+// FuncCall is used when calling functions on a remote device. Provides the name
+// and parameter values, set by the caller.
+message FuncCall {
+  string name = 1;
+  repeated uint32 params = 2;
+}
+
+// FuncRet represents function return values. Empty for now, allowing the ability
+// to expand in the future
+message FuncRet {
+
 }

@@ -131,6 +131,18 @@ type Network struct {
 	event    chan *Device
 }
 
+// get a device from the network
+func (n Network) GetDevice(name string) (*Device, error) {
+	n.mux.Lock()
+	defer n.mux.Unlock()
+	for _, dev := range n.devs {
+		if dev.Name == name {
+			return dev, nil
+		}
+	}
+	return nil, fmt.Errorf("%s was not found on the network", name)
+}
+
 // Get all known remote devices
 func (n Network) GetDevices() []*Device {
 	return n.devs
