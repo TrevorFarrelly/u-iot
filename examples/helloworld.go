@@ -12,6 +12,7 @@ import (
 // must be variadic. As long as the signature is defined properly, the library
 // will verify that you get the number of variables you want, and they are within
 // the range you want.
+
 func Hello0(args ...int) {
 	log.Printf("Hello, World!")
 }

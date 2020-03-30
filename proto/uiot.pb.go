@@ -244,6 +244,7 @@ func (m *DevInfo) GetFuncs() []*Func {
 	return nil
 }
 
+
 // FuncCall is used when calling functions on a remote device. Provides the name
 // and parameter values, set by the caller.
 type FuncCall struct {
@@ -425,6 +426,7 @@ type UnimplementedDeviceServer struct {
 func (*UnimplementedDeviceServer) Bootstrap(ctx context.Context, req *DevInfo) (*DevInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Bootstrap not implemented")
 }
+
 func (*UnimplementedDeviceServer) CallFunc(ctx context.Context, req *FuncCall) (*Err, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CallFunc not implemented")
 }
