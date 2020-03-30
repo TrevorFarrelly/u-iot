@@ -1,10 +1,12 @@
 package uiot
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	proto "github.com/TrevorFarrelly/u-iot/proto"
+	"google.golang.org/grpc"
 )
 
 // Device wraps the protobuf representation of a device's information
@@ -49,6 +51,41 @@ func (d *Device) AddFunction(name string, f func(...int), p ...Param) error {
 		return fmt.Errorf("Cannot modify remote device")
 	}
 	d.Funcs[name] = &Func{f, p}
+	return nil
+}
+
+// call a device's function
+func (d Device) CallFunc(name string, p ...int) error {
+	// get function from device
+	f, ok := d.Funcs[name]
+	if !ok {
+		return fmt.Errorf("device %s does not have function %s", d.Name, name)
+	}
+
+	// check parameters
+	if len(p) != len(f.Params) {
+		return fmt.Errorf("%s expects %d parameters, but %d were provided", name, len(f.Params), len(p))
+	}
+	var convP []uint32
+	for i, param := range f.Params {
+		if p[i] < param.Min || p[i] > param.Max {
+			return fmt.Errorf("%d is out of range for parameter %d: %d-%d", p[i], i, param.Min, param.Max)
+		}
+		convP = append(convP, uint32(p[i]))
+	}
+
+	// call remote function
+	addr := fmt.Sprintf("%s:%d", d.addr, d.port)
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	if err != nil {
+		return err
+	}
+	client := proto.NewDeviceClient(conn)
+	ctx := context.Background()
+	_, err = client.CallFunc(ctx, &proto.FuncCall{Name: name, Params: convP})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -129,6 +166,18 @@ type Network struct {
 	devs     []*Device
 	eventing bool
 	event    chan *Device
+}
+
+// get a device from the network
+func (n Network) GetDevice(name string) (*Device, error) {
+	n.mux.Lock()
+	defer n.mux.Unlock()
+	for _, dev := range n.devs {
+		if dev.Name == name {
+			return dev, nil
+		}
+	}
+	return nil, fmt.Errorf("%s was not found on the network", name)
 }
 
 // Get all known remote devices
