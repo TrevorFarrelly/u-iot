@@ -14,7 +14,7 @@ func NewDevice(name string, rpcPort int, t Type, r Room) *Device {
 		Type:   t,
 		Room:   r,
 		Funcs:  make(map[string]*Func),
-		port: rpcPort,
+		port:   rpcPort,
 		remote: false,
 	}
 }
