@@ -185,6 +185,51 @@ func (n Network) GetDevices() []*Device {
 	return n.devs
 }
 
+// Get all devices that match the specified type and/or room
+func (n Network) GetMatching(r Room, t Type) []*Device {
+	// initialize return array
+	ret := []*Device{}
+	// iterate over all devices
+	for _, d := range n.GetDevices() {
+		t_match := true
+		r_match := true
+		// if type is set and is not a match, skip it
+		if t != -1 && d.Type != t {
+			t_match = false
+		}
+		// if room is set and is not a match, skip it
+		if r != -1 && d.Room != r {
+			r_match = false
+		}
+		// if both type and room match, add it to return list
+		if t_match && r_match {
+			ret = append(ret, d)
+		}
+	}
+	return ret
+}
+
+// call a function on all matching devices
+func (n Network) CallAll(r Room, t Type, name string, p ...int) error {
+	// initialize error array
+	errs := []error{}
+	// iterate over all matching devices
+	for _, d := range n.GetMatching(r, t) {
+		// call function, adding error to array if we get one
+		if err := d.CallFunc(name, p...); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	// if we encountered any errors, return one containing all of them
+	if len(errs) != 0 {
+		ret := fmt.Sprintf("could not call '%s' on %d device(s):", name, len(errs))
+		for _, err := range errs {
+			ret += fmt.Sprintf("\n  %v", err)
+		}
+		return fmt.Errorf(ret)
+	}
+	return nil
+}
 // Add a new known device to the network
 func (n *Network) addDevice(new *Device) error {
 	n.mux.Lock()
@@ -222,6 +267,15 @@ const (
 	OtherType
 )
 
+func TypeFromString(s1 string) (Type, error) {
+	for i, s2 := range [...]string{"Light", "Outlet", "Speaker", "Screen", "Controller", "Other"} {
+		if s1 == s2 {
+			return Type(i), nil
+		}
+	}
+	return -1, fmt.Errorf("%s is not a valid device type", s1)
+}
+
 func (t Type) String() string {
 	return [...]string{"Light", "Outlet", "Speaker", "Screen", "Controller", "Other"}[t]
 }
@@ -240,6 +294,15 @@ const (
 	OtherRoom
 )
 
+func RoomFromString(s1 string) (Room, error) {
+	for i, s2 := range [...]string{"LivingRoom", "DiningRoom", "Bedroom", "Bathroom", "Kitchen", "Foyer", "Closet", "Other"} {
+		if s1 == s2 {
+			return Room(i), nil
+		}
+	}
+	return -1, fmt.Errorf("%s is not a valid device room", s1)
+}
+
 func (r Room) String() string {
-	return [...]string{"Living Room", "Dining Room", "Bedroom", "Bathroom", "Kitchen", "Foyer", "Closet", "Other"}[r]
+	return [...]string{"LivingRoom", "DiningRoom", "Bedroom", "Bathroom", "Kitchen", "Foyer", "Closet", "Other"}[r]
 }
