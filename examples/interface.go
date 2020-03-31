@@ -44,22 +44,46 @@ func main() {
 
 		// parse input
 		input := strings.Split(s.Text(), " ")
-		var params []int
-		for _, param := range input[2:] {
-			p, err := strconv.Atoi(param)
-			if err != nil {
-				log.Printf("Error parsing parameter %s: not an int\n", param)
-				break
+		if input[0] == "CallOne" {
+			var params []int
+			for _, param := range input[3:] {
+				p, err := strconv.Atoi(param)
+				if err != nil {
+					log.Printf("Error parsing parameter %s: not an int\n", param)
+					break
+				}
+				params = append(params, p)
 			}
-			params = append(params, p)
-		}
 
-		// call function
-		dev, err := net.GetDevice(input[0])
-		if err != nil {
-			log.Printf("Could not find device: %v", err)
+			// call function
+			dev, err := net.GetDevice(input[1])
+			if err != nil {
+				log.Printf("Could not find device: %v", err)
+			}
+			dev.CallFunc(input[2], params...)
+
+		} else if input[0] == "CallAll" {
+			t, err := uiot.TypeFromString(input[1])
+			if err != nil {
+				log.Printf("%v", err)
+				continue
+			}
+			r, err := uiot.RoomFromString(input[2])
+			if err != nil {
+				log.Printf("%v", err)
+				continue
+			}
+			var params []int
+			for _, param := range input[4:] {
+				p, err := strconv.Atoi(param)
+				if err != nil {
+					log.Printf("%v", err)
+					break
+				}
+				params = append(params, p)
+			}
+			net.CallAll(r, t, input[3], params...)
 		}
-		dev.CallFunc(input[1], params...)
 
 		fmt.Printf("> ")
 	}
