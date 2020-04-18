@@ -5,13 +5,13 @@ import (
 	"os"
 	"strconv"
 
-	uiot "github.com/TrevorFarrelly/u-iot/lib/uiot-go"
+	"github.com/TrevorFarrelly/u-iot/lib/uiot-go"
 )
 
 // functions that this device performs. Due to Go's strict typing, parameters
-// must be variadic. As long as the signature is defined properly, the library
-// will verify that you get the number of variables you want, and they are within
-// the range you want.
+// must be variadic. As long as the signature is defined properly when registering
+// the function, the library will verify that you get the number of variables you
+// want, and they are within the range you want.
 
 func Hello0(args ...int) {
 	log.Printf("Hello, World!")
@@ -26,20 +26,27 @@ func Hello3(args ...int) {
 }
 
 func main() {
+	// Parse command-line input
+	if len(os.Args) != 3 {
+		log.Printf("Invalid arguments.\nUsage: %s name port\n", os.Args[0])
+	}
 	name := os.Args[1]
-	port, _ := strconv.Atoi(os.Args[2])
+	port, err := strconv.Atoi(os.Args[2])
+	if err != nil {
+		log.Printf("Could not parse port number: %v\n", err)
+	}
 
 	// create a new device.
 	// We specify the port the RPC server will listen on, as well as a device type
-	// and location for convenience
+	// and location tags for convenience
 	d := uiot.NewDevice(name, port, uiot.Light, uiot.Living)
 
-	// add a function to the new device
+	// add functions to the new device
 	// We provide a name for the function and the expected parameters. Each
 	// parameter has a range of values it can take. u-iot handles input sanitization
 	// internally.
-  d.AddFunction("hello0", Hello0)
-  d.AddFunction("hello1", Hello1, uiot.Param{0, 256})
+	d.AddFunction("hello0", Hello0)
+	d.AddFunction("hello1", Hello1, uiot.Param{0, 256})
 	d.AddFunction("hello3", Hello3, uiot.Param{0, 85}, uiot.Param{86, 171}, uiot.Param{172, 256})
 
 	// connect to the network.
