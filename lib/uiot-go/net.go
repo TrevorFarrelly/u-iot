@@ -123,7 +123,7 @@ func (re *rpcEndpoint) CallFunc(ctx context.Context, funcinfo *proto.FuncCall) (
 	// get function from local device
 	f, ok := re.local.Funcs[funcinfo.Name]
 	if !ok {
-		return &proto.Err{Msg:"Device does not have function"}, nil
+		return &proto.Err{Msg: "Device does not have function"}, nil
 	}
 	// parse parameters
 	var params []int
@@ -132,7 +132,7 @@ func (re *rpcEndpoint) CallFunc(ctx context.Context, funcinfo *proto.FuncCall) (
 	}
 	// call function
 	f.F(params...)
-	return &proto.Err{Msg:""}, nil
+	return &proto.Err{Msg: ""}, nil
 }
 
 // start the RPC server

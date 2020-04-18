@@ -230,6 +230,7 @@ func (n Network) CallAll(r Room, t Type, name string, p ...int) error {
 	}
 	return nil
 }
+
 // Add a new known device to the network
 func (n *Network) addDevice(new *Device) error {
 	n.mux.Lock()
@@ -268,6 +269,9 @@ const (
 )
 
 func TypeFromString(s1 string) (Type, error) {
+	if s1 == "*" {
+		return -1, nil
+	}
 	for i, s2 := range [...]string{"Light", "Outlet", "Speaker", "Screen", "Controller", "Other"} {
 		if s1 == s2 {
 			return Type(i), nil
@@ -295,6 +299,9 @@ const (
 )
 
 func RoomFromString(s1 string) (Room, error) {
+	if s1 == "*" {
+		return -1, nil
+	}
 	for i, s2 := range [...]string{"LivingRoom", "DiningRoom", "Bedroom", "Bathroom", "Kitchen", "Foyer", "Closet", "Other"} {
 		if s1 == s2 {
 			return Room(i), nil
