@@ -52,17 +52,3 @@ _April_
     * CLI interface
     * LED strip
     * Desk fan
-
-### More Detailed Ideas
-This section is mostly a place for me to get minute implementation details down on paper before I forget them.
-
-* Basic API (Go) - I imagine most other languages with actual OOP features will have a slightly different design to take advantage of it.
-
-u-iot's interface should be built with ease in mind. I want someone to be able to build a basic Go program with a some functions, import `uiot-go`, add a couple lines, and have a working u-iot device.
-  * `uiot.Func` - This type associates a Go `func()` with a name and a list of parameters. This is how one defines which functions can be called by other devices on the network.
-  * `uiot.Param` - This type provides a "universal" parameter that can be used for most functions and devices. It will most likely represent a range of possible integers, with aliases for potentially common types:
-    * `uiot.BoolParam` = `uiot.Param(0,1)`
-    * `uiot.LightParam` = `uiot.Param(0,255)`
-    * `uiot.RGBParam` = `[ uiot.LightParam, uiot.LightParam, uiot.LightParam ]`
-  * `uiot.Register(name string, funcs []uiot.Function)` - this call tells u-iot what name to use and all of the functions it has. Will need to be called before bootstrapping.
-  * `uiot.Bootstrap(retry string)` - Attempt to connect to the network and build a "database" of known devices asynchronously. Takes a [`time.Duration`](https://pkg.go.dev/time?tab=doc#Duration)-parseable parameter for how often to refresh the database. May return a way to access that database for UI programs, not sure exactly what that would be yet.
