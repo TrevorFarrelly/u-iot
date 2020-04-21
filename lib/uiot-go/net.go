@@ -98,12 +98,11 @@ type rpcEndpoint struct {
 }
 
 // RPC implementations
+
+// Bootstrap a remote device. Add it to our network, then send our device info back
 func (re *rpcEndpoint) Bootstrap(ctx context.Context, remote *proto.DevInfo) (*proto.DevInfo, error) {
-	// init error to return
-	var err error
 	// parse remote device information
 	device := deviceFromProto(remote)
-	device.remote = true
 
 	// get address and port info from the context
 	p, ok := peer.FromContext(ctx)
@@ -111,19 +110,19 @@ func (re *rpcEndpoint) Bootstrap(ctx context.Context, remote *proto.DevInfo) (*p
 		addr := strings.Split(p.Addr.String(), ":")
 		device.addr = addr[0]
 	} else {
-		err = fmt.Errorf("Could not parse remote device information")
+		return nil, fmt.Errorf("Could not parse remote device information")
 	}
 
 	// add remote device info to our Network
-	err = re.network.addDevice(device)
-	return re.local.asProto(), err
+	return re.local.asProto(), re.network.addDevice(device)
 }
 
-func (re *rpcEndpoint) CallFunc(ctx context.Context, funcinfo *proto.FuncCall) (*proto.Err, error) {
+// Call a local function, triggered by a remote device
+func (re *rpcEndpoint) CallFunc(ctx context.Context, funcinfo *proto.FuncCall) (*proto.FuncRet, error) {
 	// get function from local device
 	f, ok := re.local.Funcs[funcinfo.Name]
 	if !ok {
-		return &proto.Err{Msg: "Device does not have function"}, nil
+		return &proto.FuncRet{}, fmt.Errorf("Device does not have requested function %s", funcinfo.Name)
 	}
 	// parse parameters
 	var params []int
@@ -132,7 +131,48 @@ func (re *rpcEndpoint) CallFunc(ctx context.Context, funcinfo *proto.FuncCall) (
 	}
 	// call function
 	f.F(params...)
-	return &proto.Err{Msg: ""}, nil
+	return &proto.FuncRet{}, nil
+}
+
+// Remove a remote device from our network, and forward the message to all other knwon devices
+func (re *rpcEndpoint) Quit(ctx context.Context, remote *proto.DevInfo) (*proto.Nothing, error) {
+	// parse remote device information
+	quitter := deviceFromProto(remote)
+
+	// addr field is unset, we are the first recipient.
+	// Parse IP before removing/forwarding
+	if quitter.addr == "" {
+		if p, ok := peer.FromContext(ctx); ok {
+			quitter.addr = strings.Split(p.Addr.String(), ":")[0]
+		} else {
+			return nil, fmt.Errorf("Could not parse remote device information")
+		}
+	}
+	// remove the device from our network
+	if err := re.network.removeDevice(quitter); err != nil {
+		return &proto.Nothing{}, nil
+	}
+	// forward the message to everyone we know about
+	for _, dev := range re.network.GetDevices() {
+		re.sendQuit(quitter, dev)
+	}
+	return &proto.Nothing{}, nil
+}
+
+func (re *rpcEndpoint) sendQuit(quitter *Device, remote *Device) error {
+	// construct and dial address
+	addr := fmt.Sprintf("%s:%d", remote.addr, remote.port)
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	if err != nil {
+		return err
+	}
+	// create client and send RPC
+	client := proto.NewDeviceClient(conn)
+	ctx := context.Background()
+	if _, err = client.Quit(ctx, quitter.asProto()); err != nil {
+		return err
+	}
+	return nil
 }
 
 // start the RPC server

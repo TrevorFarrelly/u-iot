@@ -4,7 +4,10 @@ syntax = "proto3";
 service Device {
     // Send our information to a remote device, and get theirs in return
     rpc Bootstrap(DevInfo) returns (DevInfo) {}
+    // call a function on a remote device
     rpc CallFunc(FuncCall) returns (FuncRet) {}
+    // tell a remote device that we are quitting, and to remove us from their network
+    rpc Quit(DevInfo) returns (Nothing) {}
 }
 
 // Meta contains human-readable information about a device. Name, type of device,
@@ -48,5 +51,10 @@ message FuncCall {
 // FuncRet represents function return values. Empty for now, allowing the ability
 // to expand in the future
 message FuncRet {
+
+}
+
+// Nothing represents nothing
+message Nothing {
 
 }
