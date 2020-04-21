@@ -165,7 +165,7 @@ type Network struct {
 	mux      sync.Mutex
 	devs     []*Device
 	eventing bool
-	event    chan *Device
+	event    chan *Event
 }
 
 // get a device from the network
@@ -245,15 +245,54 @@ func (n *Network) addDevice(new *Device) error {
 	n.devs = append(n.devs, new)
 	// send event if it's enabled
 	if n.eventing {
-		n.event <- new
+		n.event <- &Event{Connect, new}
 	}
 	return nil
 }
 
+// Remove a device from the network
+func (n *Network) removeDevice(old *Device) error {
+	n.mux.Lock()
+	defer n.mux.Unlock()
+	// remove the device from the network if we have it
+	for i, dev := range n.devs {
+		if dev.getFullAddress() == old.getFullAddress() {
+			// swap device to remove with the device at the end of the list
+			n.devs[len(n.devs)-1], n.devs[i] = n.devs[i], n.devs[len(n.devs)-1]
+			n.devs = n.devs[:len(n.devs)-1]
+			// send event if it's enabled
+			if n.eventing {
+				n.event <- &Event{Disconnect, old}
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("%s (addr %s) does not exist on the network", old.Name, old.getFullAddress())
+}
+
 // enable the event interface
-func (n *Network) EnableEvents() chan *Device {
+func (n *Network) EnableEvents() chan *Event {
 	n.eventing = true
 	return n.event
+}
+
+// Event represents a change in state in the network. Used to push notifications
+// to the user when they take advantage of the eventing interface.
+type Event struct {
+	Type EventType
+	Dev  *Device
+}
+
+// EventType represents the different types of events that are supported
+type EventType int
+
+const (
+	Connect EventType = iota
+	Disconnect
+)
+
+func (t EventType) String() string {
+	return [...]string{"Connect", "Disconnect"}[t]
 }
 
 // Type represents the various types of devices that can exist on the network

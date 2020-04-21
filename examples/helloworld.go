@@ -60,8 +60,8 @@ func main() {
 	// the Network instance contains a channel that triggers when a new device is
 	// added to its internal list. This is an easy, if basic, way to create an
 	// eventing interface.
-	for dev := range net.EnableEvents() {
-		log.Printf("New device detected: %s\n", dev.Name)
+	for e := range net.EnableEvents() {
+		log.Printf("Remote Device %sed: %s\n", e.Type.String(), e.Dev.Name)
 		log.Printf("Network:\n")
 		for _, d := range net.GetDevices() {
 			log.Printf(" * %s\n", d)
