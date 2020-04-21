@@ -32,6 +32,8 @@ func main() {
 		log.Printf("could not bootstrap: %v", err)
 	}
 
+	uiot.CloseHandler()
+
 	fmt.Printf("Starting u-iot UI...\nTriggering syntax:\n > CallOne device function param1 param2 param3...\n > CallAll type room function param1 param2 param3...\n\n")
 	// print network info after we are connected
 	time.Sleep(1 * time.Second)

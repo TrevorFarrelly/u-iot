@@ -56,6 +56,9 @@ func main() {
 	if err != nil {
 		log.Printf("could not bootstrap: %v", err)
 	}
+
+	uiot.CloseHandler()
+
 	// print network info when a new device joins.
 	// the Network instance contains a channel that triggers when a new device is
 	// added to its internal list. This is an easy, if basic, way to create an
