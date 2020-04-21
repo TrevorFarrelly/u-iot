@@ -133,6 +133,46 @@ func (re *rpcEndpoint) CallFunc(ctx context.Context, funcinfo *proto.FuncCall) (
 	f.F(params...)
 	return &proto.FuncRet{}, nil
 }
+
+// Remove a remote device from our network, and forward the message to all other knwon devices
+func (re *rpcEndpoint) Quit(ctx context.Context, remote *proto.DevInfo) (*proto.Nothing, error) {
+	// parse remote device information
+	quitter := deviceFromProto(remote)
+
+	// addr field is unset, we are the first recipient.
+	// Parse IP before removing/forwarding
+	if quitter.addr == "" {
+		if p, ok := peer.FromContext(ctx); ok {
+			quitter.addr = strings.Split(p.Addr.String(), ":")[0]
+		} else {
+			return nil, fmt.Errorf("Could not parse remote device information")
+		}
+	}
+	// remove the device from our network
+	if err := re.network.removeDevice(quitter); err != nil {
+		return &proto.Nothing{}, nil
+	}
+	// forward the message to everyone we know about
+	for _, dev := range re.network.GetDevices() {
+		re.sendQuit(quitter, dev)
+	}
+	return &proto.Nothing{}, nil
+}
+
+func (re *rpcEndpoint) sendQuit(quitter *Device, remote *Device) error {
+	// construct and dial address
+	addr := fmt.Sprintf("%s:%d", remote.addr, remote.port)
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	if err != nil {
+		return err
+	}
+	// create client and send RPC
+	client := proto.NewDeviceClient(conn)
+	ctx := context.Background()
+	if _, err = client.Quit(ctx, quitter.asProto()); err != nil {
+		return err
+	}
+	return nil
 }
 
 // start the RPC server
