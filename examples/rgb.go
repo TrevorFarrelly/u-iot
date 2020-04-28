@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/TrevorFarrelly/rpi"
-	"github.com/TrevorFarrelly/u-iot/lib/uiot-go"
+	"github.com/TrevorFarrelly/u-iot"
 )
 
 var (
@@ -130,7 +130,7 @@ func main() {
 	off()
 
 	// create new u-iot device with all functions
-	d := uiot.NewDevice(name, port, uiot.Light, uiot.Living)
+	d := uiot.NewDevice(name, uiot.Light, uiot.Living)
 	d.AddFunction("on", on)
 	d.AddFunction("off", off)
 	d.AddFunction("cycle", cycle)
@@ -138,7 +138,7 @@ func main() {
 	d.AddFunction("color", color, uiot.Param{0, 255}, uiot.Param{0, 255}, uiot.Param{0, 255})
 
 	// connect to the network
-	_, err := uiot.Bootstrap(d)
+	_, err := uiot.Bootstrap(d, port)
 	if err != nil {
 		log.Printf("could not bootstrap: %v", err)
 	}

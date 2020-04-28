@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrevorFarrelly/u-iot/lib/uiot-go"
+	"github.com/TrevorFarrelly/u-iot"
 )
 
 func main() {
@@ -24,10 +24,10 @@ func main() {
 	}
 
 	// create a new device with no functions to represent our interface
-	d := uiot.NewDevice(name, port, uiot.Controller, uiot.OtherRoom)
+	d := uiot.NewDevice(name, uiot.Controller, uiot.OtherRoom)
 
 	// connect to the network.
-	net, err := uiot.Bootstrap(d)
+	net, err := uiot.Bootstrap(d, port)
 	if err != nil {
 		log.Printf("could not bootstrap: %v", err)
 	}
