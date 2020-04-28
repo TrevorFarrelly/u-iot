@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/TrevorFarrelly/rpi"
-	"github.com/TrevorFarrelly/u-iot/lib/uiot-go"
+	"github.com/TrevorFarrelly/u-iot"
 )
 
 var ctrl = rpi.BoardToPin(5)
@@ -46,12 +46,12 @@ func main() {
 	off()
 
 	// create new u-iot device with on/off functions
-	d := uiot.NewDevice(name, port, uiot.Light, uiot.Living)
+	d := uiot.NewDevice(name, uiot.Light, uiot.Living)
 	d.AddFunction("on", on)
 	d.AddFunction("off", off)
 
 	// connect to the network
-	_, err := uiot.Bootstrap(d)
+	_, err := uiot.Bootstrap(d, port)
 	if err != nil {
 		log.Printf("could not bootstrap: %v", err)
 	}

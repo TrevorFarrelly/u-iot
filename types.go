@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Device wraps the protobuf representation of a device's information
+// Device represents a device's location and functionality within a home.
 type Device struct {
 	Name  string
 	Type  Type
@@ -45,7 +45,8 @@ func deviceFromProto(p *proto.DevInfo) *Device {
 	return dev
 }
 
-// add a function to this device
+// AddFunction adds a function f to device d. Remote devices can call this function
+// using the provided name and params, p.
 func (d *Device) AddFunction(name string, f func(...int), p ...Param) error {
 	if d.remote {
 		return fmt.Errorf("Cannot modify remote device")
@@ -54,7 +55,9 @@ func (d *Device) AddFunction(name string, f func(...int), p ...Param) error {
 	return nil
 }
 
-// call a device's function
+// CallFunc calls a remote device's function with the provided parameter values.
+// Parameter checking is handled internally, i.e. if the provided parameters are
+// outside the range specified in AddFunction, CallFunc will return an error.
 func (d Device) CallFunc(name string, p ...int) error {
 	// get function from device
 	f, ok := d.Funcs[name]
@@ -123,22 +126,24 @@ func (d Device) getFullAddress() string {
 	return fmt.Sprintf("%s:%d", d.addr, d.port)
 }
 
-// print formatting
+// String returns a string representing this device, in the form (type, room)
+// name: func func func...
 func (d Device) String() string {
-	ret := fmt.Sprintf("(%s, %s) %s:", d.Room, d.Type, d.Name)
+	ret := fmt.Sprintf("(%s, %s) %s:", d.Type, d.Room, d.Name)
 	for name, f := range d.Funcs {
 		ret += fmt.Sprintf("  %s%s", name, f)
 	}
 	return ret
 }
 
-// Func wraps the protobuf representation of a device's function
+// Func represents a function that a device performs. F will be nil in any remote
+// device.
 type Func struct {
 	F      func(...int)
 	Params []Param
 }
 
-// print formatting
+// String returns the string representation of the function, in the form (param, param, param...)
 func (f Func) String() string {
 	ret := fmt.Sprintf("( ")
 	for _, p := range f.Params {
@@ -148,19 +153,18 @@ func (f Func) String() string {
 	return ret
 }
 
-// Param wraps the protobuf representation of a function's parameter
+// Param represents a parameter to a function, with specific minimum and maximum values.
 type Param struct {
 	Min int
 	Max int
 }
 
-// print formatting
 func (p Param) String() string {
 	return fmt.Sprintf("%d-%d", p.Min, p.Max)
 }
 
-// Network contains all of the known devices on the network, as well as an event-driven
-// interface to detect when new devices connect
+// Network contains a list of all devices on the network, updated dynamically
+// as devices connect and disconnect.
 type Network struct {
 	mux      sync.Mutex
 	devs     []*Device
@@ -168,7 +172,7 @@ type Network struct {
 	event    chan *Event
 }
 
-// get a device from the network
+// GetDevice gets a device named name from the network.
 func (n Network) GetDevice(name string) (*Device, error) {
 	n.mux.Lock()
 	defer n.mux.Unlock()
@@ -180,12 +184,12 @@ func (n Network) GetDevice(name string) (*Device, error) {
 	return nil, fmt.Errorf("%s was not found on the network", name)
 }
 
-// Get all known remote devices
+// GetDevices returns all known devices from the network.
 func (n Network) GetDevices() []*Device {
 	return n.devs
 }
 
-// Get all devices that match the specified type and/or room
+// GetMatching gets all devices with the provide room and type.
 func (n Network) GetMatching(r Room, t Type) []*Device {
 	// initialize return array
 	ret := []*Device{}
@@ -209,7 +213,7 @@ func (n Network) GetMatching(r Room, t Type) []*Device {
 	return ret
 }
 
-// call a function on all matching devices
+// CallAll calls a function on all devices that match the provided room and type.
 func (n Network) CallAll(r Room, t Type, name string, p ...int) error {
 	// initialize error array
 	errs := []error{}
@@ -270,20 +274,22 @@ func (n *Network) removeDevice(old *Device) error {
 	return fmt.Errorf("%s (addr %s) does not exist on the network", old.Name, old.getFullAddress())
 }
 
-// enable the event interface
+// EnableEvents provides access to the Event channel, allowing a device to detect
+// when a remote device connects or disconnects from the network.
 func (n *Network) EnableEvents() chan *Event {
 	n.eventing = true
 	return n.event
 }
 
-// Event represents a change in state in the network. Used to push notifications
-// to the user when they take advantage of the eventing interface.
+// Event represents a change in state in the network. Used in the Network struct,
+// specifically when the user has enabled eventing via network.EnableEvents().
 type Event struct {
 	Type EventType
 	Dev  *Device
 }
 
-// EventType represents the different types of events that are supported
+// EventType represents the different types of events that are supported by the
+// eventing interface.
 type EventType int
 
 const (
@@ -295,7 +301,7 @@ func (t EventType) String() string {
 	return [...]string{"Connect", "Disconnect"}[t]
 }
 
-// Type represents the various types of devices that can exist on the network
+// Type represents the various types of devices that can exist on the network.
 type Type int
 
 const (
@@ -307,6 +313,8 @@ const (
 	OtherType
 )
 
+// TypeFromString converts a type string (in the same form as one returned from
+// type.String()) into a valid Type. Supports wildcard (*) for use in network.CallAll().
 func TypeFromString(s1 string) (Type, error) {
 	if s1 == "*" {
 		return -1, nil
@@ -323,7 +331,7 @@ func (t Type) String() string {
 	return [...]string{"Light", "Outlet", "Speaker", "Screen", "Controller", "Other"}[t]
 }
 
-// Room represents the various rooms a device can be placed in
+// Room represents various rooms a device could be placed in.
 type Room int
 
 const (
@@ -337,16 +345,18 @@ const (
 	OtherRoom
 )
 
-func RoomFromString(s1 string) (Room, error) {
-	if s1 == "*" {
+// RoomFromString converts a room string (in the same form as one returned from
+// room.String()) into a valid Room. Supports wildcard (*) for use in network.CallAll().
+func RoomFromString(s string) (Room, error) {
+	if s == "*" {
 		return -1, nil
 	}
 	for i, s2 := range [...]string{"LivingRoom", "DiningRoom", "Bedroom", "Bathroom", "Kitchen", "Foyer", "Closet", "Other"} {
-		if s1 == s2 {
+		if s == s2 {
 			return Room(i), nil
 		}
 	}
-	return -1, fmt.Errorf("%s is not a valid device room", s1)
+	return -1, fmt.Errorf("%s is not a valid device room", s)
 }
 
 func (r Room) String() string {

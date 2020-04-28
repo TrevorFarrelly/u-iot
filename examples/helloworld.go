@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/TrevorFarrelly/u-iot/lib/uiot-go"
+	"github.com/TrevorFarrelly/u-iot"
 )
 
 // functions that this device performs. Due to Go's strict typing, parameters
@@ -39,7 +39,7 @@ func main() {
 	// create a new device.
 	// We specify the port the RPC server will listen on, as well as a device type
 	// and location tags for convenience
-	d := uiot.NewDevice(name, port, uiot.Light, uiot.Living)
+	d := uiot.NewDevice(name, uiot.Light, uiot.Living)
 
 	// add functions to the new device
 	// We provide a name for the function and the expected parameters. Each
@@ -52,7 +52,7 @@ func main() {
 	// connect to the network.
 	// we get a Network instance back. This instance is updated in the background
 	// automaticaly as new devices connect.
-	net, err := uiot.Bootstrap(d)
+	net, err := uiot.Bootstrap(d, port)
 	if err != nil {
 		log.Printf("could not bootstrap: %v", err)
 	}
