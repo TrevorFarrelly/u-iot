@@ -11,19 +11,15 @@ u-iot is written in Go, with more languages coming in the future.
 ## Installation
 
 ### Golang
-```
-$ go get github.com/TrevorFarrelly/u-iot
-```
-then, in code:
+If you are using modules:
 ```golang
-import uiot github.com/TrevorFarrelly/u-iot/lib/uiot-go
+import uiot github.com/TrevorFarrelly/u-iot
 ```
-or if you are using dep, in your project directory:
-```
-$ dep init
-```
+then build when you are ready.
+
+Or, if you are using dep:
 ```golang
-import uiot github.com/TrevorFarrelly/u-iot/lib/uiot-go
+import uiot github.com/TrevorFarrelly/u-iot
 ```
 ```
 $ dep ensure
@@ -33,7 +29,7 @@ $ dep ensure
 TBD
 
 ## Reference
-{Future GoDoc link here}
+GoDoc-style documentation can be found at [TrevorFarrelly.github.io/u-iot/](https://TrevorFarrelly.github.io/u-iot/).
 
 ## Using Raspberry Pi GPIO
 
