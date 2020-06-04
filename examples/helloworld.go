@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/TrevorFarrelly/u-iot"
+	"github.com/TrevorFarrelly/u-iot/exp"
 )
 
 // functions that this device performs. Due to Go's strict typing, parameters
@@ -40,6 +41,25 @@ func main() {
 	// We specify the port the RPC server will listen on, as well as a device type
 	// and location tags for convenience
 	d := uiot.NewDevice(name, uiot.Light, uiot.Living)
+
+
+
+
+
+	s, err := exp.AddStatusVar("str", "string")
+	*s = "hi"
+	log.Println(*s, err)
+	i, err :=	exp.AddStatusVar("int", "int")
+	*i = 64
+	log.Println(*i, err)
+	f, err := exp.AddStatusVar("float", "float64")
+	*f = 3.14
+	log.Println(*f, err)
+	b, err := exp.AddStatusVar("bad", "bla")
+	log.Println(b, err)
+
+
+
 
 	// add functions to the new device
 	// We provide a name for the function and the expected parameters. Each

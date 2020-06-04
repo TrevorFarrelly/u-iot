@@ -6,6 +6,8 @@ service Device {
     rpc Bootstrap(DevInfo) returns (DevInfo) {}
     // call a function on a remote device
     rpc CallFunc(FuncCall) returns (FuncRet) {}
+    // request status from a remote device
+    rpc NotifyStatus(Status) returns (Nothing) {}
     // tell a remote device that we are quitting, and to remove us from their network
     rpc Quit(DevInfo) returns (Nothing) {}
 }
@@ -46,6 +48,19 @@ message DevInfo {
 message FuncCall {
   string name = 1;
   repeated uint32 params = 2;
+}
+
+// StatusEntry contains one component reporting a device's state
+// Preview for what multi-type support may look like in the future
+message StatusVar {
+  string name = 1;
+  string type = 2;
+  bytes value = 3;
+}
+
+// Statuses are used to report arbitrary information about remote device states.
+message Status {
+  repeated StatusVar entries = 1;
 }
 
 // FuncRet represents function return values. Empty for now, allowing the ability

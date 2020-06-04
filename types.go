@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/TrevorFarrelly/u-iot/exp"
 	proto "github.com/TrevorFarrelly/u-iot/proto"
 	"google.golang.org/grpc"
 )
@@ -15,6 +16,7 @@ type Device struct {
 	Type  Type
 	Room  Room
 	Funcs map[string]*Func
+	status []*exp.StatusVar
 
 	// these fields are set on creation/receipt of a new device
 	remote bool

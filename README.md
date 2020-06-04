@@ -57,3 +57,19 @@ u-iot's Golang library is usable and firmly within the realm of a "minimum viabl
 |          | Security          | Maybe     | &#9744;    | |        | Security          | Maybe     | &#9744;    |
 
 Anyone is welcome to work on these features. Please check out [CONTRIBUTING.md](CONTRIBUTING.md) if you are interested.
+
+
+
+
+
+
+
+
+Status reporting:
+on device creation, add variables to status:
+`device.AddStatusVar(name, &var)`
+internally, get type of status var using `printf("%t")`
+send over RPCs when requesting
+convert data into byte array, and decode on the other end based on rules set by 
+
+In the future, attach it to function returns too. Updates device struct automatically, i.e. push vs. pull

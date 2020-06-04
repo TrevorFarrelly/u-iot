@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/TrevorFarrelly/u-iot"
+	"github.com/TrevorFarrelly/u-iot/exp"
 )
 
 func main() {
