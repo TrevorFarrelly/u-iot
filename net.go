@@ -104,7 +104,7 @@ func (re *rpcEndpoint) Bootstrap(ctx context.Context, remote *proto.DevInfo) (*p
 	// parse remote device information
 	device := deviceFromProto(remote)
 
-	// get address and port info from the context
+	// get address from the context
 	p, ok := peer.FromContext(ctx)
 	if ok {
 		addr := strings.Split(p.Addr.String(), ":")
