@@ -49,6 +49,8 @@ func Bootstrap(dev *Device, port int) (*Network, error) {
 	network = &Network{
 		event: make(chan *Event),
 	}
+	// add RPC port info to device struct
+  dev.port = port
 	// create the channel used to send data between the multicast service and the RPC service
 	c := make(chan *remote)
 	// start the RPC service
